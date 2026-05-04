@@ -1,0 +1,11 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "<your-account>.dkr.ecr.ap-southeast-1.amazonaws.com/neupayment:latest",
+    "Update": "true"
+  },
+  "Ports": [
+    { "ContainerPort": 8080, "HostPort": 80 }
+  ],
+  "Logging": "/var/log/nginx"
+}

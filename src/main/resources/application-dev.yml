@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:neupayment}
+    username: ${DB_USER:neupayment}
+    password: ${DB_PASSWORD:neupayment}
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: false
+
+logging:
+  level:
+    root: INFO
+    ph.edu.neu.payment: DEBUG
+    org.springframework.security: INFO
+
+neu:
+  security:
+    cors:
+      allowed-origins: "*"

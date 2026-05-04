@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:neutest;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+neu:
+  security:
+    jwt:
+      secret: dGVzdC1qd3Qtc2VjcmV0LWtleS10ZXN0LWp3dC1zZWNyZXQta2V5LXRlc3Qtand0LXNlY3JldC1rZXktdGVzdC1qd3Qtc2VjcmV0LWtleQ==
+  qr:
+    hmac-secret: dGVzdC1xci1obWFjLXNlY3JldC10ZXN0LXFyLWhtYWMtc2VjcmV0

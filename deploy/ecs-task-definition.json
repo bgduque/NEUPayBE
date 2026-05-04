@@ -1,0 +1,47 @@
+{
+  "family": "neupay",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::542508027319:role/neupay-exec",
+  "taskRoleArn": "arn:aws:iam::542508027319:role/neupay-task",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [{
+    "name": "neupay",
+    "image": "542508027319.dkr.ecr.ap-southeast-1.amazonaws.com/neupay:1.0.0",
+    "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
+    "essential": true,
+    "environment": [
+      { "name": "SPRING_PROFILES_ACTIVE", "value": "prod" },
+      { "name": "DB_HOST", "value": "neupay.cj80swsm677v.ap-southeast-1.rds.amazonaws.com" },
+      { "name": "DB_PORT", "value": "5432" },
+      { "name": "DB_NAME", "value": "neupay" },
+      { "name": "NEU_CORS_ALLOWED_ORIGINS", "value": "https://neu.edu.ph" }
+    ],
+    "secrets": [
+      { "name": "DB_USER",            "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:542508027319:secret:neu/payment/db-creds-CuCOcw:username::" },
+      { "name": "DB_PASSWORD",        "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:542508027319:secret:neu/payment/db-creds-CuCOcw:password::" },
+      { "name": "NEU_JWT_SECRET",     "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:542508027319:secret:neu/payment/jwt-secret-uRn11R" },
+      { "name": "NEU_QR_HMAC_SECRET", "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:542508027319:secret:neu/payment/qr-hmac-JAtlWv" }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/neupay",
+        "awslogs-region": "ap-southeast-1",
+        "awslogs-stream-prefix": "neupay"
+      }
+    },
+    "healthCheck": {
+      "command": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/liveness || exit 1"],
+      "interval": 30,
+      "timeout": 5,
+      "retries": 3,
+      "startPeriod": 60
+    }
+  }]
+}
