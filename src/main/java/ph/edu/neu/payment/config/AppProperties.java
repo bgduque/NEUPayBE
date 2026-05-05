@@ -57,6 +57,14 @@ public record AppProperties(
             String adminEmail,
             String adminPassword,
             String adminIdNumber,
-            String adminFullName) {
+            String adminFullName,
+            SecondaryAdmin secondary) {
+    }
+
+    public record SecondaryAdmin(
+            String email,
+            String password,
+            String idNumber,
+            String fullName) {
     }
 }

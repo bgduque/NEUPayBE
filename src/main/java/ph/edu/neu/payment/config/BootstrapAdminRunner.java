@@ -30,7 +30,10 @@ public class BootstrapAdminRunner {
                                             PasswordEncoder encoder,
                                             AppProperties props,
                                             WalletProvisioner walletProvisioner) {
-        return args -> provision(users, encoder, props, walletProvisioner);
+        return args -> {
+            provision(users, encoder, props, walletProvisioner);
+            provisionSecondary(users, encoder, props, walletProvisioner);
+        };
     }
 
     @Transactional
@@ -65,6 +68,36 @@ public class BootstrapAdminRunner {
         walletProvisioner.ensureFor(admin);
         log.info("Bootstrap ADMIN provisioned: {} (id-number {})",
                 bootstrap.adminEmail(), bootstrap.adminIdNumber());
+    }
+
+    @Transactional
+    void provisionSecondary(UserRepository users, PasswordEncoder encoder, AppProperties props,
+                            WalletProvisioner walletProvisioner) {
+        var bootstrap = props.bootstrap();
+        if (bootstrap == null || bootstrap.secondary() == null) return;
+        var s = bootstrap.secondary();
+
+        if (isBlank(s.email()) || isBlank(s.password())
+                || isBlank(s.idNumber()) || isBlank(s.fullName())) {
+            return;
+        }
+        if (users.findByEmailIgnoreCase(s.email()).isPresent()) return;
+        if (users.existsByIdNumber(s.idNumber())) {
+            log.warn("Secondary admin ID number {} already exists; skipping provisioning.", s.idNumber());
+            return;
+        }
+
+        User admin = new User(
+                s.fullName(),
+                s.email().toLowerCase(),
+                s.idNumber(),
+                "Administration",
+                UserRole.ADMIN,
+                VerificationStatus.VERIFIED,
+                encoder.encode(s.password()));
+        users.save(admin);
+        walletProvisioner.ensureFor(admin);
+        log.info("Secondary ADMIN provisioned: {} (id-number {})", s.email(), s.idNumber());
     }
 
     private static boolean isBlank(String s) { return s == null || s.isBlank(); }

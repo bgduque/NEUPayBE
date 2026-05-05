@@ -75,3 +75,11 @@ neu:
     admin-password: ${NEU_BOOTSTRAP_ADMIN_PASSWORD:}
     admin-id-number: ${NEU_BOOTSTRAP_ADMIN_ID:NEU-ADMIN-0001}
     admin-full-name: ${NEU_BOOTSTRAP_ADMIN_NAME:NEU System Admin}
+    # Optional second ADMIN seeded on startup (idempotent — skipped if email
+    # or id-number already exists). Used to provision named operators
+    # in addition to the generic bootstrap admin.
+    secondary:
+      email: ${NEU_BOOTSTRAP_SECONDARY_ADMIN_EMAIL:}
+      password: ${NEU_BOOTSTRAP_SECONDARY_ADMIN_PASSWORD:}
+      id-number: ${NEU_BOOTSTRAP_SECONDARY_ADMIN_ID:}
+      full-name: ${NEU_BOOTSTRAP_SECONDARY_ADMIN_NAME:}
