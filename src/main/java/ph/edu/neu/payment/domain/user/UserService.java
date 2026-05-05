@@ -19,4 +19,14 @@ public interface UserService {
 
     /** Provision a CASHIER or ADMIN account. Caller must already be an ADMIN. */
     AdminDtos.UserDetails createStaff(AdminDtos.CreateStaffRequest req, UUID actorUserId);
+
+    /**
+     * Provision an arbitrary role (student/faculty/cashier/admin) and optionally
+     * seed the wallet with an initial balance, which is recorded as a TOP_UP
+     * transaction tied to the actor.
+     */
+    AdminDtos.UserDetails createUser(AdminDtos.CreateUserRequest req, UUID actorUserId);
+
+    /** Reassign a user's role. Caller must already be an ADMIN. */
+    AdminDtos.UserDetails changeRole(UUID userId, UserRole newRole, UUID actorUserId);
 }

@@ -15,7 +15,11 @@ import ph.edu.neu.payment.auth.RequiresStepUp;
 import ph.edu.neu.payment.common.idempotency.Idempotent;
 import ph.edu.neu.payment.domain.transaction.TransactionCategory;
 import ph.edu.neu.payment.domain.transaction.TransactionService;
+import ph.edu.neu.payment.common.error.NotFoundException;
+import ph.edu.neu.payment.domain.user.UserRepository;
+import ph.edu.neu.payment.domain.user.UserRole;
 import ph.edu.neu.payment.domain.user.UserService;
+import ph.edu.neu.payment.domain.wallet.WalletProvisioner;
 import ph.edu.neu.payment.domain.wallet.WalletService;
 import ph.edu.neu.payment.payment.PaymentService;
 
@@ -27,16 +31,22 @@ import java.util.UUID;
 public class AdminController {
 
     private final UserService userService;
+    private final UserRepository userRepository;
     private final WalletService wallets;
+    private final WalletProvisioner walletProvisioner;
     private final PaymentService payments;
     private final TransactionService transactions;
 
     public AdminController(UserService userService,
+                           UserRepository userRepository,
                            WalletService wallets,
+                           WalletProvisioner walletProvisioner,
                            PaymentService payments,
                            TransactionService transactions) {
         this.userService = userService;
+        this.userRepository = userRepository;
         this.wallets = wallets;
+        this.walletProvisioner = walletProvisioner;
         this.payments = payments;
         this.transactions = transactions;
     }
@@ -56,6 +66,11 @@ public class AdminController {
 
     @GetMapping("/users/{id}/wallet")
     public WalletDtos.WalletView walletForUser(@PathVariable UUID id) {
+        // Self-heal: legacy users (bootstrap admin, pre-fix staff) may not have
+        // a wallet row yet. Provision lazily so the UI never sees a 404 here.
+        var user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        walletProvisioner.ensureFor(user);
         return wallets.getWalletForUser(id);
     }
 
@@ -76,6 +91,26 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public AdminDtos.UserDetails createStaff(@Valid @RequestBody AdminDtos.CreateStaffRequest req) {
         return userService.createStaff(req, CurrentUser.require().id());
+    }
+
+    /**
+     * Provision any role of user (student / faculty / cashier / admin) and
+     * optionally seed an initial wallet balance — recorded as a TOP_UP
+     * transaction so it surfaces in the receipt log.
+     */
+    @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public AdminDtos.UserDetails createUser(@Valid @RequestBody AdminDtos.CreateUserRequest req) {
+        return userService.createUser(req, CurrentUser.require().id());
+    }
+
+    /** Reassign a user's role. ADMIN-only. */
+    @PatchMapping("/users/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public AdminDtos.UserDetails changeRole(@PathVariable UUID id,
+                                            @Valid @RequestBody AdminDtos.ChangeRoleRequest req) {
+        UserRole role = req.role();
+        return userService.changeRole(id, role, CurrentUser.require().id());
     }
 
     /**

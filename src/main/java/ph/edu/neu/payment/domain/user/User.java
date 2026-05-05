@@ -76,6 +76,14 @@ public class User {
         this.status = newStatus;
     }
 
+    public void changeRole(UserRole newRole) {
+        this.role = newRole;
+    }
+
+    public void changeProgram(String newProgram) {
+        this.program = newProgram;
+    }
+
     public UUID getId() { return id; }
     public String getFullName() { return fullName; }
     public String getEmail() { return email; }

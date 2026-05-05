@@ -12,6 +12,7 @@ import ph.edu.neu.payment.domain.user.User;
 import ph.edu.neu.payment.domain.user.UserRepository;
 import ph.edu.neu.payment.domain.user.UserRole;
 import ph.edu.neu.payment.domain.user.VerificationStatus;
+import ph.edu.neu.payment.domain.wallet.WalletProvisioner;
 
 /**
  * On startup, if no ADMIN exists yet AND the bootstrap env vars are set, provision
@@ -27,12 +28,14 @@ public class BootstrapAdminRunner {
     @Bean
     public ApplicationRunner bootstrapAdmin(UserRepository users,
                                             PasswordEncoder encoder,
-                                            AppProperties props) {
-        return args -> provision(users, encoder, props);
+                                            AppProperties props,
+                                            WalletProvisioner walletProvisioner) {
+        return args -> provision(users, encoder, props, walletProvisioner);
     }
 
     @Transactional
-    void provision(UserRepository users, PasswordEncoder encoder, AppProperties props) {
+    void provision(UserRepository users, PasswordEncoder encoder, AppProperties props,
+                   WalletProvisioner walletProvisioner) {
         var bootstrap = props.bootstrap();
         if (bootstrap == null
                 || isBlank(bootstrap.adminEmail())
@@ -59,6 +62,7 @@ public class BootstrapAdminRunner {
                 VerificationStatus.VERIFIED,
                 encoder.encode(bootstrap.adminPassword()));
         users.save(admin);
+        walletProvisioner.ensureFor(admin);
         log.info("Bootstrap ADMIN provisioned: {} (id-number {})",
                 bootstrap.adminEmail(), bootstrap.adminIdNumber());
     }

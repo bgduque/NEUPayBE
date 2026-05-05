@@ -1,5 +1,7 @@
 package ph.edu.neu.payment.api.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,6 +31,26 @@ public final class AdminDtos {
 
         public enum StaffRole { CASHIER, ADMIN }
     }
+
+    /**
+     * Provision any role of user (STUDENT / FACULTY / CASHIER / ADMIN). Optional
+     * {@code initialBalance} is credited to the user's wallet at creation time
+     * and emitted as a {@code TOP_UP} transaction so it shows up in the receipt
+     * log.
+     */
+    public record CreateUserRequest(
+            @NotBlank @Size(max = 160) String fullName,
+            @NotBlank @Email @Size(max = 255) String email,
+            @NotBlank @Size(min = 6, max = 32) @Pattern(regexp = "[A-Za-z0-9-]+") String idNumber,
+            @NotBlank @Size(min = 12, max = 128) String temporaryPassword,
+            @NotNull UserRole role,
+            @Size(max = 160) String program,
+            @DecimalMin(value = "0.00", inclusive = true)
+            @Digits(integer = 15, fraction = 2)
+            BigDecimal initialBalance,
+            @Size(max = 160) String initialBalanceNote) {}
+
+    public record ChangeRoleRequest(@NotNull UserRole role) {}
 
     public record UserSummary(
             UUID id,

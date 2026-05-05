@@ -8,12 +8,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import ph.edu.neu.payment.api.dto.AdminDtos;
+import ph.edu.neu.payment.api.dto.PaymentDtos;
 import ph.edu.neu.payment.common.error.ConflictException;
 import ph.edu.neu.payment.common.error.NotFoundException;
 import ph.edu.neu.payment.domain.audit.AuditService;
 import ph.edu.neu.payment.domain.wallet.Wallet;
+import ph.edu.neu.payment.domain.wallet.WalletProvisioner;
 import ph.edu.neu.payment.domain.wallet.WalletRepository;
 import ph.edu.neu.payment.domain.wallet.WalletService;
+import ph.edu.neu.payment.payment.PaymentService;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -24,17 +27,23 @@ public class UserServiceImpl implements UserService {
     private final UserRepository users;
     private final WalletRepository wallets;
     private final WalletService walletService;
+    private final WalletProvisioner walletProvisioner;
+    private final PaymentService paymentService;
     private final AuditService audit;
     private final PasswordEncoder passwordEncoder;
 
     public UserServiceImpl(UserRepository users,
                            WalletRepository wallets,
                            WalletService walletService,
+                           WalletProvisioner walletProvisioner,
+                           PaymentService paymentService,
                            AuditService audit,
                            PasswordEncoder passwordEncoder) {
         this.users = users;
         this.wallets = wallets;
         this.walletService = walletService;
+        this.walletProvisioner = walletProvisioner;
+        this.paymentService = paymentService;
         this.audit = audit;
         this.passwordEncoder = passwordEncoder;
     }
@@ -103,7 +112,67 @@ public class UserServiceImpl implements UserService {
                 VerificationStatus.VERIFIED,
                 passwordEncoder.encode(req.temporaryPassword()));
         users.save(staff);
+        walletProvisioner.ensureFor(staff);
         audit.record(actorUserId, "STAFF_CREATE", "User", staff.getId().toString(), role.name());
         return details(staff.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdminDtos.UserDetails createUser(AdminDtos.CreateUserRequest req, UUID actorUserId) {
+        if (users.existsByEmailIgnoreCase(req.email()))
+            throw new ConflictException("Email already registered");
+        if (users.existsByIdNumber(req.idNumber()))
+            throw new ConflictException("ID number already registered");
+
+        String program = (req.program() == null || req.program().isBlank())
+                ? defaultProgramFor(req.role())
+                : req.program().trim();
+
+        User user = new User(
+                req.fullName().trim(),
+                req.email().trim().toLowerCase(),
+                req.idNumber().trim(),
+                program,
+                req.role(),
+                VerificationStatus.VERIFIED,
+                passwordEncoder.encode(req.temporaryPassword()));
+        users.save(user);
+        walletProvisioner.ensureFor(user);
+        audit.record(actorUserId, "USER_CREATE", "User", user.getId().toString(), req.role().name());
+
+        BigDecimal seed = req.initialBalance();
+        if (seed != null && seed.signum() > 0) {
+            String note = (req.initialBalanceNote() == null || req.initialBalanceNote().isBlank())
+                    ? "Opening balance for " + user.getFullName()
+                    : req.initialBalanceNote().trim();
+            paymentService.adminCredit(actorUserId,
+                    new PaymentDtos.AdminTopUpRequest(user.getId(), seed, note));
+            audit.record(actorUserId, "USER_INITIAL_BALANCE", "User", user.getId().toString(),
+                    seed.toPlainString());
+        }
+        return details(user.getId());
+    }
+
+    @Override
+    @Transactional
+    public AdminDtos.UserDetails changeRole(UUID userId, UserRole newRole, UUID actorUserId) {
+        User u = users.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        if (u.getRole() == newRole) {
+            return details(userId);
+        }
+        UserRole previous = u.getRole();
+        u.changeRole(newRole);
+        audit.record(actorUserId, "USER_ROLE_CHANGE", "User", userId.toString(),
+                previous.name() + "->" + newRole.name());
+        return details(userId);
+    }
+
+    private static String defaultProgramFor(UserRole role) {
+        return switch (role) {
+            case STUDENT -> "Student";
+            case FACULTY -> "Faculty";
+            case CASHIER, ADMIN -> "Staff";
+        };
     }
 }
